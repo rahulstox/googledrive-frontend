@@ -36,3 +36,23 @@ export async function api(path, options = {}) {
   if (!res.ok) throw new Error(data.message || "Request failed");
   return data;
 }
+
+export async function downloadFile(url, filename) {
+  const token = getToken();
+  const res = await fetch(url, {
+    method: "GET",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Download failed.");
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename || "download";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
+}

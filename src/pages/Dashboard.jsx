@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo, useRef, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import {
@@ -9,17 +9,25 @@ import {
   Download,
   Trash2,
   ChevronLeft,
+  ChevronRight,
   Upload,
   HardDrive,
   Calendar,
-  Cloud,
   X,
   LayoutGrid,
   List,
   ChevronDown,
   ExternalLink,
+  Printer,
+  Share2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Link2,
+  Lock,
 } from "lucide-react";
-import { api, getStreamUrl } from "../api/client";
+import { api, getStreamUrl, downloadFile } from "../api/client";
+import { useAuth } from "../context/useAuth";
 
 function formatDate(dateStr) {
   const d = new Date(dateStr);
@@ -49,9 +57,56 @@ function isPdf(mimeType) {
   return mimeType === "application/pdf" || mimeType === "application/x-pdf";
 }
 
-function isViewableInBrowser(mimeType) {
-  if (!mimeType) return false;
-  const m = mimeType.toLowerCase();
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PPTX_MIME =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+function isDocx(mimeType, name) {
+  if (mimeType === DOCX_MIME) return true;
+  return name && /\.docx?$/i.test(name);
+}
+
+function isXlsx(mimeType, name) {
+  if (mimeType === XLSX_MIME) return true;
+  return name && /\.xlsx?$/i.test(name);
+}
+
+function isPptx(mimeType, name) {
+  if (mimeType === PPTX_MIME) return true;
+  return name && /\.pptx?$/i.test(name);
+}
+
+function isOfficeDoc(mimeType, name) {
+  return (
+    isDocx(mimeType, name) || isXlsx(mimeType, name) || isPptx(mimeType, name)
+  );
+}
+
+function getOpenWithLabel(item) {
+  if (!item) return "Open with";
+  const m = (item.mimeType || "").toLowerCase();
+  const name = item.name || "";
+  if (isDocx(m, name)) return "Open with Google Docs";
+  if (isXlsx(m, name)) return "Open with Google Sheets";
+  if (isPptx(m, name)) return "Open with Google Slides";
+  if (isImage(m)) return "Open with Photos";
+  if (isPdf(m)) return "Open with PDF viewer";
+  return "Open with default app";
+}
+
+function getGoogleDocsViewerUrl(fileUrl) {
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(
+    fileUrl
+  )}&embedded=true`;
+}
+
+function isViewableInBrowser(mimeType, name) {
+  if (!mimeType && !name) return false;
+  const m = (mimeType || "").toLowerCase();
+  if (isOfficeDoc(m, name)) return true;
   return (
     m.startsWith("image/") ||
     m === "application/pdf" ||
@@ -482,6 +537,7 @@ const GridItem = memo(function GridItem({
 export default function Dashboard() {
   const { folderId } = useParams();
   const navigate = useNavigate();
+  const { searchQuery } = useOutletContext();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -503,7 +559,11 @@ export default function Dashboard() {
   const [dropTargetId, setDropTargetId] = useState(null);
   const [moving, setMoving] = useState(false);
   const [dragId, setDragId] = useState(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [shareModalItem, setShareModalItem] = useState(null);
+  const [openWithDropdownOpen, setOpenWithDropdownOpen] = useState(false);
 
+  const { user: authUser } = useAuth();
   const filePickerRef = useRef(null);
   const folderPickerRef = useRef(null);
   const uploadMenuRef = useRef(null);
@@ -511,7 +571,11 @@ export default function Dashboard() {
   const parentId = folderId && folderId !== "root" ? folderId : null;
 
   const sortedItems = useMemo(() => {
-    const arr = [...items];
+    let arr = [...items];
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      arr = arr.filter((item) => item.name.toLowerCase().includes(q));
+    }
     const cmp = (a, b) => {
       let v = 0;
       if (sortBy === "name")
@@ -533,7 +597,15 @@ export default function Dashboard() {
       a.type !== b.type ? (a.type === "folder" ? -1 : 1) : cmp(a, b)
     );
     return arr;
-  }, [items, sortBy, sortOrder]);
+  }, [items, sortBy, sortOrder, searchQuery]);
+
+  const viewableFiles = useMemo(
+    () =>
+      sortedItems.filter(
+        (i) => i.type === "file" && isViewableInBrowser(i.mimeType, i.name)
+      ),
+    [sortedItems]
+  );
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -720,19 +792,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownload = useCallback((item) => {
+  const handleDownload = useCallback(async (item) => {
     if (item.type !== "file") return;
-    const url =
-      getStreamUrl(item._id) +
-      (getStreamUrl(item._id).includes("?") ? "&" : "?") +
-      "download=1";
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = item.name;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.click();
-    toast.success("Download started.");
+    try {
+      const url =
+        getStreamUrl(item._id) +
+        (getStreamUrl(item._id).includes("?") ? "&" : "?") +
+        "download=1";
+      await downloadFile(url, item.name);
+      toast.success("Download started.");
+    } catch {
+      toast.error("Download failed.");
+    }
   }, []);
 
   const handleView = useCallback((item) => {
@@ -915,12 +986,12 @@ export default function Dashboard() {
               className="bg-drive-dark border border-drive-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-drive-accent"
               aria-label="Sort by"
             >
-              <option value="name-asc">Name A–Z</option>
-              <option value="name-desc">Name Z–A</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
               <option value="size-asc">Size (smallest)</option>
               <option value="size-desc">Size (largest)</option>
-              <option value="type-asc">Type A–Z</option>
-              <option value="type-desc">Type Z–A</option>
+              <option value="type-asc">Type A-Z</option>
+              <option value="type-desc">Type Z-A</option>
               <option value="date-asc">Date (oldest)</option>
               <option value="date-desc">Date (newest)</option>
             </select>
@@ -1078,7 +1149,7 @@ export default function Dashboard() {
 
       {previewUrl && previewItem && (
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 animate-fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-label={
@@ -1087,61 +1158,360 @@ export default function Dashboard() {
           onClick={() => {
             setPreviewUrl(null);
             setPreviewItem(null);
+            setPreviewZoom(1);
+            setOpenWithDropdownOpen(false);
           }}
         >
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-4 z-10">
-            <p className="text-drive-muted text-sm bg-black/70 px-4 py-2 rounded-lg max-w-[60vw] truncate">
-              {previewItem.name}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setPreviewUrl(null);
-                setPreviewItem(null);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors backdrop-blur-sm shrink-0"
-              aria-label="Close preview"
-            >
-              <X className="w-5 h-5" />
-              <span className="text-sm font-medium">Close</span>
-            </button>
-          </div>
           <div
-            className="absolute inset-0 flex items-center justify-center p-4 pt-20 pb-8 min-h-0"
+            className={`w-full max-w-6xl max-h-[95vh] sm:max-h-[92vh] overflow-hidden flex flex-col animate-slide-up ${
+              isImage(previewItem.mimeType)
+                ? "bg-transparent"
+                : "rounded-xl sm:rounded-2xl bg-white shadow-2xl"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {isPdf(previewItem.mimeType) ? (
-              <object
-                data={previewUrl}
-                type="application/pdf"
-                title={previewItem.name}
-                className="w-full max-w-4xl flex-1 min-h-[70vh] rounded-lg shadow-2xl bg-white border-0"
-                style={{ minHeight: "70vh" }}
+            <div
+              className={`flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 shrink-0 ${
+                isImage(previewItem.mimeType)
+                  ? "bg-black/70 backdrop-blur-md border-b border-white/10"
+                  : "border-b border-gray-200 bg-gray-50"
+              }`}
+            >
+              <p
+                className={`text-xs sm:text-sm font-medium truncate max-w-[25%] sm:max-w-[40%] ${
+                  isImage(previewItem.mimeType) ? "text-white" : "text-gray-800"
+                }`}
               >
-                <iframe
-                  src={previewUrl}
-                  title={previewItem.name}
-                  className="w-full max-w-4xl flex-1 min-h-[70vh] rounded-lg shadow-2xl bg-white border-0"
-                  style={{ minHeight: "70vh" }}
-                />
-              </object>
-            ) : isImage(previewItem.mimeType) ? (
-              <img
-                src={previewUrl}
-                alt={previewItem.name}
-                loading="eager"
-                className="max-w-full max-h-[calc(100vh-6rem)] w-auto h-auto object-contain rounded-lg shadow-2xl select-none"
-                style={{ maxHeight: "calc(100vh - 6rem)" }}
-                draggable={false}
-              />
-            ) : (
-              <iframe
-                src={previewUrl}
-                title={previewItem.name}
-                className="w-full max-w-4xl flex-1 min-h-[70vh] rounded-lg shadow-2xl bg-white border-0"
-                style={{ minHeight: "70vh" }}
-              />
-            )}
+                {previewItem.name}
+              </p>
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOpenWithDropdownOpen((o) => !o)}
+                    className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${
+                      isImage(previewItem.mimeType)
+                        ? "bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 text-white"
+                        : "bg-white border border-gray-300 hover:bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    <span className="hidden sm:inline">
+                      {getOpenWithLabel(previewItem)}
+                    </span>
+                    <span className="sm:hidden">Open</span>
+                    <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                  </button>
+                  {openWithDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-[110]"
+                        onClick={() => setOpenWithDropdownOpen(false)}
+                        aria-hidden
+                      />
+                      <div className="absolute top-full right-0 mt-1 py-2 w-56 rounded-xl bg-white border border-gray-200 shadow-2xl z-[120]">
+                        {isOfficeDoc(
+                          previewItem.mimeType,
+                          previewItem.name
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.open(
+                                getGoogleDocsViewerUrl(previewUrl),
+                                "_blank",
+                                "noopener,noreferrer"
+                              );
+                              setOpenWithDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 text-sm"
+                          >
+                            <ExternalLink className="w-4 h-4 text-gray-500" />
+                            {isDocx(previewItem.mimeType, previewItem.name)
+                              ? "Open with Google Docs"
+                              : isXlsx(previewItem.mimeType, previewItem.name)
+                              ? "Open with Google Sheets"
+                              : "Open with Google Slides"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setOpenWithDropdownOpen(false)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 text-sm"
+                        >
+                          <FileIcon className="w-4 h-4 text-gray-500" />
+                          View here
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.open(
+                              previewUrl,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                            setOpenWithDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 text-sm"
+                        >
+                          <ExternalLink className="w-4 h-4 text-gray-500" />
+                          Open in new tab
+                        </button>
+                        <div className="border-t border-gray-100 my-1" />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const url =
+                                previewUrl +
+                                (previewUrl.includes("?") ? "&" : "?") +
+                                "download=1";
+                              await downloadFile(url, previewItem.name);
+                              toast.success("Download started.");
+                            } catch {
+                              toast.error("Download failed.");
+                            }
+                            setOpenWithDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 text-sm"
+                        >
+                          <Download className="w-4 h-4 text-gray-500" />
+                          Download
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const url =
+                                previewUrl +
+                                (previewUrl.includes("?") ? "&" : "?") +
+                                "download=1";
+                              await downloadFile(url, previewItem.name);
+                              toast.success(
+                                "Download started. Open from your device with the default app."
+                              );
+                            } catch {
+                              toast.error("Download failed.");
+                            }
+                            setOpenWithDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 text-sm"
+                        >
+                          <ExternalLink className="w-4 h-4 text-gray-500" />
+                          Open with default app
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className={`hidden sm:block p-1.5 sm:p-2 rounded-lg ${
+                    isImage(previewItem.mimeType)
+                      ? "hover:bg-white/10 text-white"
+                      : "hover:bg-gray-200 text-gray-600"
+                  }`}
+                  aria-label="Print"
+                >
+                  <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const url =
+                        previewUrl +
+                        (previewUrl.includes("?") ? "&" : "?") +
+                        "download=1";
+                      await downloadFile(url, previewItem.name);
+                      toast.success("Download started.");
+                    } catch {
+                      toast.error("Download failed.");
+                    }
+                  }}
+                  className={`p-1.5 sm:p-2 rounded-lg ${
+                    isImage(previewItem.mimeType)
+                      ? "hover:bg-white/10 text-white"
+                      : "hover:bg-gray-200 text-gray-600"
+                  }`}
+                  aria-label="Download"
+                >
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShareModalItem(previewItem)}
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-drive-accent hover:bg-drive-accentHover text-white text-xs sm:text-sm"
+                >
+                  <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewUrl(null);
+                    setPreviewItem(null);
+                    setPreviewZoom(1);
+                    setOpenWithDropdownOpen(false);
+                  }}
+                  className={`p-1.5 sm:p-2 rounded-lg ${
+                    isImage(previewItem.mimeType)
+                      ? "hover:bg-white/10 text-white"
+                      : "hover:bg-gray-200 text-gray-600"
+                  }`}
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center min-h-0 relative">
+              {viewableFiles.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idx = viewableFiles.findIndex(
+                        (f) => f._id === previewItem._id
+                      );
+                      if (idx <= 0) return;
+                      const prev = viewableFiles[idx - 1];
+                      setPreviewItem(prev);
+                      setPreviewUrl(getStreamUrl(prev._id));
+                      setPreviewZoom(1);
+                    }}
+                    className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors"
+                    aria-label="Previous file"
+                  >
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idx = viewableFiles.findIndex(
+                        (f) => f._id === previewItem._id
+                      );
+                      if (idx < 0 || idx >= viewableFiles.length - 1) return;
+                      const next = viewableFiles[idx + 1];
+                      setPreviewItem(next);
+                      setPreviewUrl(getStreamUrl(next._id));
+                      setPreviewZoom(1);
+                    }}
+                    className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors"
+                    aria-label="Next file"
+                  >
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                </>
+              )}
+              <div
+                className="flex items-center justify-center w-full h-full p-4 overflow-auto bg-transparent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {isOfficeDoc(previewItem.mimeType, previewItem.name) ? (
+                  <iframe
+                    src={getGoogleDocsViewerUrl(previewUrl)}
+                    title={previewItem.name}
+                    className="w-full flex-1 min-h-[65vh] rounded border-0 bg-white"
+                    style={{ minHeight: "65vh" }}
+                  />
+                ) : isPdf(previewItem.mimeType) ? (
+                  <object
+                    data={previewUrl}
+                    type="application/pdf"
+                    title={previewItem.name}
+                    className="w-full max-w-4xl flex-1 min-h-[60vh] rounded-lg shadow-2xl bg-white border-0"
+                    style={{ minHeight: "60vh" }}
+                  >
+                    <iframe
+                      src={previewUrl}
+                      title={previewItem.name}
+                      className="w-full max-w-4xl flex-1 min-h-[60vh] rounded-lg shadow-2xl bg-white border-0"
+                      style={{ minHeight: "60vh" }}
+                    />
+                  </object>
+                ) : isImage(previewItem.mimeType) ? (
+                  <div className="flex items-center justify-center overflow-auto min-h-full">
+                    <div
+                      style={{
+                        transform: `scale(${previewZoom})`,
+                        transformOrigin: "center",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <img
+                        src={previewUrl}
+                        alt={previewItem.name}
+                        loading="eager"
+                        className="max-w-full max-h-[calc(92vh-10rem)] w-auto h-auto object-contain select-none"
+                        style={{ maxHeight: "calc(92vh - 10rem)" }}
+                        draggable={false}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    title={previewItem.name}
+                    className="w-full max-w-4xl flex-1 min-h-[60vh] rounded-lg shadow-2xl bg-white border-0"
+                    style={{ minHeight: "60vh" }}
+                  />
+                )}
+              </div>
+            </div>
+            <div
+              className={`shrink-0 flex items-center justify-center gap-3 sm:gap-6 px-3 sm:px-4 py-2 sm:py-3 border-t ${
+                isImage(previewItem.mimeType)
+                  ? "border-white/10 bg-black/70 backdrop-blur-md"
+                  : "border-gray-200 bg-gray-50 justify-between"
+              }`}
+            >
+              {!isImage(previewItem.mimeType) && (
+                <p className="text-gray-500 text-xs truncate max-w-[60%] sm:max-w-[50%]">
+                  My Drive
+                  {breadcrumbs.length > 1
+                    ? ` > ${breadcrumbs
+                        .map((b) => b.name)
+                        .slice(1)
+                        .join(" > ")}`
+                    : ""}{" "}
+                  &gt; {previewItem.name}
+                </p>
+              )}
+              {isImage(previewItem.mimeType) && (
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewZoom((z) => Math.max(0.25, z - 0.25))
+                    }
+                    className="p-1.5 sm:p-2.5 rounded-lg hover:bg-white/20 bg-white/5 text-white backdrop-blur-sm"
+                    aria-label="Zoom out"
+                  >
+                    <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  <span className="text-white text-xs sm:text-sm font-medium px-1 sm:px-2 min-w-[3rem] text-center">
+                    {Math.round(previewZoom * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom(1)}
+                    className="p-1.5 sm:p-2.5 rounded-lg hover:bg-white/20 bg-white/5 text-white backdrop-blur-sm"
+                    aria-label="Fit"
+                  >
+                    <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom((z) => Math.min(3, z + 0.25))}
+                    className="p-1.5 sm:p-2.5 rounded-lg hover:bg-white/20 bg-white/5 text-white backdrop-blur-sm"
+                    aria-label="Zoom in"
+                  >
+                    <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1168,12 +1538,16 @@ export default function Dashboard() {
             </p>
             <div className="space-y-2">
               {(isPdf(openOptionsItem.mimeType) ||
-                isViewableInBrowser(openOptionsItem.mimeType)) && (
+                isViewableInBrowser(
+                  openOptionsItem.mimeType,
+                  openOptionsItem.name
+                )) && (
                 <button
                   type="button"
                   onClick={() => {
                     setPreviewItem(openOptionsItem);
                     setPreviewUrl(getStreamUrl(openOptionsItem._id));
+                    setPreviewZoom(1);
                     setOpenOptionsItem(null);
                   }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl bg-drive-border/60 hover:bg-drive-border text-white transition-colors text-left"
@@ -1199,15 +1573,19 @@ export default function Dashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const url = getStreamUrl(openOptionsItem._id);
-                  const a = document.createElement("a");
-                  a.href = url + (url.includes("?") ? "&" : "?") + "download=1";
-                  a.download = openOptionsItem.name;
-                  a.target = "_blank";
-                  a.rel = "noopener noreferrer";
-                  a.click();
-                  toast.success("Download started.");
+                onClick={async () => {
+                  try {
+                    const url =
+                      getStreamUrl(openOptionsItem._id) +
+                      (getStreamUrl(openOptionsItem._id).includes("?")
+                        ? "&"
+                        : "?") +
+                      "download=1";
+                    await downloadFile(url, openOptionsItem.name);
+                    toast.success("Download started.");
+                  } catch {
+                    toast.error("Download failed.");
+                  }
                   setOpenOptionsItem(null);
                 }}
                 className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl bg-drive-border/60 hover:bg-drive-border text-white transition-colors text-left"
@@ -1223,6 +1601,110 @@ export default function Dashboard() {
                 className="px-4 py-2 rounded-xl bg-drive-border/80 hover:bg-drive-border text-white"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shareModalItem && (
+        <div
+          className="fixed inset-0 z-[101] flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-title"
+          onClick={() => setShareModalItem(null)}
+        >
+          <div
+            className="modal-3d glass w-full max-w-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-drive-border animate-slide-up bg-drive-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="share-title"
+              className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 truncate"
+            >
+              Share &ldquo;{shareModalItem.name}&rdquo;
+            </h2>
+            <div className="mb-3 sm:mb-4">
+              <input
+                type="text"
+                placeholder="Add people, groups, spaces and calendar events"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-drive-dark border border-drive-border text-white placeholder-drive-muted text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-drive-accent focus:border-transparent"
+                aria-label="Add people"
+              />
+            </div>
+            <div className="mb-3 sm:mb-4">
+              <p className="text-drive-muted text-xs font-medium mb-2">
+                People with access
+              </p>
+              <div className="flex items-center justify-between gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-drive-dark/80 border border-drive-border">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-drive-accent/30 flex items-center justify-center shrink-0">
+                    <span className="text-drive-accent font-semibold text-xs sm:text-sm">
+                      {authUser?.firstName?.[0] || authUser?.email?.[0] || "?"}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white text-xs sm:text-sm font-medium truncate">
+                      {authUser?.firstName} {authUser?.lastName} (you)
+                    </p>
+                    <p className="text-drive-muted text-xs truncate">
+                      {authUser?.email}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-drive-muted text-xs shrink-0">Owner</span>
+              </div>
+            </div>
+            <div className="mb-3 sm:mb-4">
+              <p className="text-drive-muted text-xs font-medium mb-2">
+                General access
+              </p>
+              <div className="flex items-center gap-2 py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-drive-dark/80 border border-drive-border">
+                <Lock className="w-4 h-4 text-drive-muted shrink-0" />
+                <select
+                  className="flex-1 bg-transparent text-white text-xs sm:text-sm focus:outline-none"
+                  defaultValue="restricted"
+                  aria-label="General access"
+                >
+                  <option value="restricted">Restricted</option>
+                  <option value="link-viewer">
+                    Anyone with the link (Viewer)
+                  </option>
+                  <option value="link-editor">
+                    Anyone with the link (Editor)
+                  </option>
+                </select>
+              </div>
+              <p className="text-drive-muted text-xs mt-1.5">
+                Only people with access can open with the link
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = getStreamUrl(shareModalItem._id);
+                  navigator.clipboard
+                    .writeText(url)
+                    .then(() => {
+                      toast.success("Link copied to clipboard.");
+                    })
+                    .catch(() => {
+                      toast.error("Could not copy link.");
+                    });
+                }}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-drive-border/60 hover:bg-drive-border text-white text-xs sm:text-sm"
+              >
+                <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                Copy link
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareModalItem(null)}
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-drive-accent hover:bg-drive-accentHover text-white font-medium text-xs sm:text-sm"
+              >
+                Done
               </button>
             </div>
           </div>
@@ -1275,14 +1757,29 @@ export default function Dashboard() {
                   aria-hidden
                 />
               </div>
-              <p className="font-semibold text-white text-lg">
-                No files or folders yet
-              </p>
-              <p className="text-drive-muted mt-2 max-w-sm">
-                Drag and drop files here (including .zip to extract), or click{" "}
-                <strong className="text-drive-accent">New folder</strong> to
-                create one.
-              </p>
+              {searchQuery && searchQuery.trim() ? (
+                <>
+                  <p className="font-semibold text-white text-lg">
+                    No results found
+                  </p>
+                  <p className="text-drive-muted mt-2 max-w-sm">
+                    No files or folders match &ldquo;{searchQuery.trim()}
+                    &rdquo;. Try a different search term.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-white text-lg">
+                    No files or folders yet
+                  </p>
+                  <p className="text-drive-muted mt-2 max-w-sm">
+                    Drag and drop files here (including .zip to extract), or
+                    click{" "}
+                    <strong className="text-drive-accent">New folder</strong> to
+                    create one.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <>
