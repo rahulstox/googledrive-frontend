@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useCallback } from "react";
+import { api } from "../api/client";
 
 export const AuthContext = createContext(null);
 
@@ -25,11 +26,7 @@ export function AuthProvider({ children }) {
       return;
     }
     setLoading(true);
-    fetch("/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: "include",
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+    api("/auth/me")
       .then((data) => {
         setUser(data.user);
       })
