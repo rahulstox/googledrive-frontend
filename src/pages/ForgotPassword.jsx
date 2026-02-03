@@ -1,20 +1,42 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mail, ArrowRight } from "lucide-react";
+import { Mail } from "lucide-react";
 import { api } from "../api/client";
+
+// Robust email regex
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const [touched, setTouched] = useState(false);
+
+  const isValid = emailRegex.test(email);
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (touched && val && !emailRegex.test(val)) {
+      setError("Please enter a valid email address.");
+    } else {
+      setError("");
+    }
+  };
+
+  const handleBlur = () => {
+    setTouched(true);
+    if (email && !emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) {
-      toast.error("Please enter your email.");
-      return;
-    }
+    if (!isValid) return;
+
     setLoading(true);
     try {
       await api("/auth/forgot-password", {
@@ -58,7 +80,7 @@ export default function ForgotPassword() {
         </p>
 
         {!sent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
                 <Mail className="w-5 h-5" />
@@ -66,15 +88,29 @@ export default function ForgotPassword() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
+                onBlur={handleBlur}
                 placeholder="Email"
-                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
+                aria-label="Email Address"
+                aria-invalid={!!error}
+                aria-required="true"
+                required
+                className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border ${
+                  error
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-transparent focus:ring-gray-900"
+                } rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 transition-all duration-200`}
               />
+              {error && (
+                <p className="mt-1 text-sm text-red-500 pl-1" role="alert">
+                  {error}
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isValid}
               className="w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? "Sending..." : "Send reset link"}
@@ -89,14 +125,16 @@ export default function ForgotPassword() {
           </Link>
         )}
 
-        <p className="mt-8 text-center text-sm text-gray-500">
-          <Link
-            to="/login"
-            className="font-semibold text-gray-900 hover:underline decoration-2 underline-offset-2"
-          >
-            Back to sign in
-          </Link>
-        </p>
+        {!sent && (
+          <p className="mt-8 text-center text-sm text-gray-500">
+            <Link
+              to="/login"
+              className="font-semibold text-gray-900 hover:underline decoration-2 underline-offset-2"
+            >
+              Back to sign in
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

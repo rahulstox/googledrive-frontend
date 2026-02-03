@@ -25,26 +25,37 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+
+    // If user is already loaded (e.g. from login), don't refetch
+    if (user) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     api("/auth/me")
       .then((data) => {
         setUser(data.user);
       })
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        setToken(null);
-        setUser(null);
+      .catch((err) => {
+        console.error("Auth check failed:", err);
+        // Only logout on auth errors (401)
+        if (err.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+          setToken(null);
+          setUser(null);
+        }
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, user]);
 
   const login = useCallback((newToken, newUser) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-    setLoading(true);
     setToken(newToken);
     setUser(newUser);
+    setLoading(false);
   }, []);
 
   return (

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
+import DeleteAccountModal from "./DeleteAccountModal";
 import { api } from "../api/client";
 import toast from "react-hot-toast";
 
@@ -20,6 +21,8 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const profileRef = useRef(null);
 
   useEffect(() => {
@@ -34,19 +37,26 @@ export default function Layout() {
     };
   }, []);
 
-  const handleDeleteAccount = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete your account? This action is irreversible and will delete all your files.",
-      )
-    ) {
-      try {
-        await api("/auth/me", { method: "DELETE" });
-        toast.success("Account deleted successfully.");
-        logout();
-      } catch (err) {
-        toast.error(err.message || "Failed to delete account.");
-      }
+  const handleDeleteAccount = () => {
+    setIsProfileOpen(false);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteAccount = async (password) => {
+    setIsDeletingAccount(true);
+    try {
+      await api("/auth/me", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      toast.success("Account deleted successfully.");
+      setIsDeleteModalOpen(false);
+      logout();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete account.");
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -219,6 +229,13 @@ export default function Layout() {
         <main className="flex-1 min-h-0 overflow-auto" style={{ minHeight: 0 }}>
           <Outlet context={{ searchQuery, setSearchQuery }} />
         </main>
+
+        <DeleteAccountModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={confirmDeleteAccount}
+          loading={isDeletingAccount}
+        />
       </div>
     </div>
   );

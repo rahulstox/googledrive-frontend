@@ -39,6 +39,7 @@ import SettingsModal from "../components/SettingsModal";
 import UploadProgress from "../components/UploadProgress";
 import SelectionToolbar from "../components/SelectionToolbar";
 import FileThumbnail from "../components/FileThumbnail";
+import ConfirmationModal from "../components/ConfirmationModal";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -89,6 +90,13 @@ export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [contextMenu, setContextMenu] = useState(null);
+
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    item: null,
+    count: 0,
+    isPermanent: false,
+  });
 
   const isStarredView = location.pathname === "/starred";
   const isTrashView = location.pathname === "/trash";
@@ -362,6 +370,42 @@ export default function Dashboard() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    const { item, type } = deleteConfirmation;
+    try {
+      if (type === "empty_trash") {
+        const res = await api("/files/trash/empty", {
+          method: "DELETE",
+        });
+        toast.success(res.message || "Trash emptied");
+      } else if (item) {
+        // Single delete
+        await api(`/files/${item._id}`, { method: "DELETE" });
+        toast.success("Deleted forever");
+      } else {
+        // Bulk delete
+        await api("/files/trash/bulk-permanent", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: Array.from(selectedIds) }),
+        });
+        toast.success("Deleted forever");
+        setSelectedIds(new Set());
+      }
+      loadData();
+    } catch (err) {
+      toast.error(err.message || "Delete failed");
+    } finally {
+      setDeleteConfirmation({
+        isOpen: false,
+        item: null,
+        count: 0,
+        isPermanent: false,
+        type: null,
+      });
+    }
+  };
+
   const handleAction = async (action, item) => {
     setContextMenu(null);
     try {
@@ -396,10 +440,12 @@ export default function Dashboard() {
         toast.success("Restored");
         loadData();
       } else if (action === "delete") {
-        if (!confirm("Delete forever? This cannot be undone.")) return;
-        await api(`/files/${item._id}`, { method: "DELETE" });
-        toast.success("Deleted forever");
-        loadData();
+        setDeleteConfirmation({
+          isOpen: true,
+          item: item,
+          count: 1,
+          isPermanent: true,
+        });
       } else if (action === "rename") {
         setRenamingId(item._id);
         setRenameValue(item.name);
@@ -506,16 +552,12 @@ export default function Dashboard() {
         }
         setSelectedIds(new Set());
       } else if (action === "delete") {
-        if (!confirm("Delete selected items forever? This cannot be undone."))
-          return;
-        await api("/files/trash/bulk-permanent", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: Array.from(selectedIds) }),
+        setDeleteConfirmation({
+          isOpen: true,
+          item: null,
+          count: selectedIds.size,
+          isPermanent: true,
         });
-        toast.success("Deleted forever");
-        setSelectedIds(new Set());
-        loadData();
       } else if (action === "trash") {
         await api("/files/bulk-delete", {
           method: "POST",
@@ -535,11 +577,12 @@ export default function Dashboard() {
         setSelectedIds(new Set());
         loadData();
       } else if (action === "star") {
-        const promises = Array.from(selectedIds).map((id) =>
-          api(`/files/${id}/star`, { method: "PATCH" }),
-        );
-        await Promise.all(promises);
-        toast.success("Toggled Star");
+        const res = await api("/files/bulk-star", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: Array.from(selectedIds) }),
+        });
+        toast.success(res.message);
         loadData();
       }
     } catch (err) {
@@ -805,22 +848,14 @@ export default function Dashboard() {
               )}
               {isTrashView && (
                 <button
-                  onClick={async () => {
-                    if (
-                      !confirm(
-                        "Are you sure you want to empty the trash? This cannot be undone.",
-                      )
-                    )
-                      return;
-                    try {
-                      const res = await api("/files/trash/empty", {
-                        method: "DELETE",
-                      });
-                      toast.success(res.message || "Trash emptied");
-                      loadData();
-                    } catch (err) {
-                      toast.error(err.message || "Failed to empty trash");
-                    }
+                  onClick={() => {
+                    setDeleteConfirmation({
+                      isOpen: true,
+                      item: null,
+                      count: 0,
+                      isPermanent: true,
+                      type: "empty_trash",
+                    });
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all shadow-lg shadow-red-500/25"
                 >
@@ -1259,6 +1294,24 @@ export default function Dashboard() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() =>
+          setDeleteConfirmation({ ...deleteConfirmation, isOpen: false })
+        }
+        onConfirm={handleConfirmDelete}
+        title={deleteConfirmation.isPermanent ? "Delete Forever?" : "Delete?"}
+        message={
+          deleteConfirmation.type === "empty_trash"
+            ? "Are you sure you want to empty the trash? All items will be permanently deleted. This action cannot be undone."
+            : deleteConfirmation.item
+              ? `Are you sure you want to permanently delete "${deleteConfirmation.item.name}"? This action cannot be undone.`
+              : `Are you sure you want to permanently delete ${deleteConfirmation.count} items? This action cannot be undone.`
+        }
+        confirmText="Delete Forever"
+        isDangerous={true}
       />
     </div>
   );

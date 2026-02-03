@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mail, Lock, ArrowRight, Github } from "lucide-react";
+import { Mail, Lock, ArrowRight, Github, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 import { api } from "../api/client";
 
@@ -33,6 +33,7 @@ const GoogleIcon = ({ className }) => (
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export default function Login() {
                 <Lock className="w-5 h-5" />
               </div>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="current-password"
                 value={password}
@@ -119,7 +120,17 @@ export default function Login() {
                 placeholder="Password"
                 className="w-full pl-12 pr-12 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
               />
-              {/* Optional: Eye icon could go here */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
             </div>
             <div className="flex justify-end mt-2">
               <Link
@@ -154,7 +165,9 @@ export default function Login() {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => toast("Google login coming soon!", { icon: "🚧" })}
+            onClick={() =>
+              (window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/google`)
+            }
             className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
             <GoogleIcon className="w-5 h-5" />
@@ -162,7 +175,9 @@ export default function Login() {
           </button>
           <button
             type="button"
-            onClick={() => toast("GitHub login coming soon!", { icon: "🚧" })}
+            onClick={() =>
+              (window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/github`)
+            }
             className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
             <Github className="w-5 h-5 text-gray-900" />

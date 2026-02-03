@@ -1,7 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mail, Lock, User, ArrowRight, Github } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  Github,
+  Eye,
+  EyeOff,
+  Check,
+  X,
+} from "lucide-react";
 import { api } from "../api/client";
 
 const GoogleIcon = ({ className }) => (
@@ -34,8 +44,38 @@ export default function Register() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false,
+  });
+
+  useEffect(() => {
+    setPasswordCriteria({
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[@$!%*?&]/.test(password),
+    });
+  }, [password]);
+
+  const getStrength = () => {
+    const metCriteria = Object.values(passwordCriteria).filter(Boolean).length;
+    if (metCriteria === 0)
+      return { label: "Enter Password", color: "bg-gray-200" };
+    if (metCriteria <= 2) return { label: "Weak", color: "bg-red-500" };
+    if (metCriteria <= 4) return { label: "Medium", color: "bg-yellow-500" };
+    return { label: "Strong", color: "bg-green-500" };
+  };
+
+  const strength = getStrength();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,10 +83,12 @@ export default function Register() {
       toast.error("Please fill all fields.");
       return;
     }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
+
+    if (!Object.values(passwordCriteria).every(Boolean)) {
+      toast.error("Please meet all password requirements.");
       return;
     }
+
     setLoading(true);
     try {
       const data = await api("/auth/register", {
@@ -144,12 +186,104 @@ export default function Register() {
               <Lock className="w-5 h-5" />
             </div>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password (min 8 chars)"
               className="w-full pl-12 pr-12 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+
+          {/* Password Strength Meter & Criteria */}
+          <div
+            className="space-y-3 transition-all duration-300 overflow-hidden"
+            style={{
+              maxHeight: password ? "200px" : "0",
+              opacity: password ? 1 : 0,
+            }}
+          >
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-gray-500 font-medium">
+                Password strength
+              </span>
+              <span
+                className={`font-medium ${strength.color === "bg-gray-200" ? "text-gray-400" : strength.color.replace("bg-", "text-")}`}
+              >
+                {strength.label}
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ease-out ${strength.color}`}
+                style={{
+                  width: `${(Object.values(passwordCriteria).filter(Boolean).length / 5) * 100}%`,
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 pt-1">
+              <div
+                className={`flex items-center gap-1.5 transition-colors ${passwordCriteria.length ? "text-green-600 font-medium" : ""}`}
+              >
+                {passwordCriteria.length ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                )}
+                At least 8 chars
+              </div>
+              <div
+                className={`flex items-center gap-1.5 transition-colors ${passwordCriteria.uppercase ? "text-green-600 font-medium" : ""}`}
+              >
+                {passwordCriteria.uppercase ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                )}
+                Uppercase letter
+              </div>
+              <div
+                className={`flex items-center gap-1.5 transition-colors ${passwordCriteria.lowercase ? "text-green-600 font-medium" : ""}`}
+              >
+                {passwordCriteria.lowercase ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                )}
+                Lowercase letter
+              </div>
+              <div
+                className={`flex items-center gap-1.5 transition-colors ${passwordCriteria.number ? "text-green-600 font-medium" : ""}`}
+              >
+                {passwordCriteria.number ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                )}
+                Number
+              </div>
+              <div
+                className={`flex items-center gap-1.5 transition-colors ${passwordCriteria.special ? "text-green-600 font-medium" : ""}`}
+              >
+                {passwordCriteria.special ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                )}
+                Special char
+              </div>
+            </div>
           </div>
 
           <button

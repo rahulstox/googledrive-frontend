@@ -8,21 +8,18 @@ const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Activate = lazy(() => import("./pages/Activate"));
+const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 function PageLoader() {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-drive-dark"
-    >
+    <div className="min-h-screen flex items-center justify-center bg-drive-dark">
       <div className="flex flex-col items-center gap-3">
         <div
           className="h-10 w-10 border-2 border-drive-accent border-t-transparent rounded-full animate-spin"
           aria-hidden
         />
-        <span className="text-sm text-drive-muted">
-          Loading...
-        </span>
+        <span className="text-sm text-drive-muted">Loading...</span>
       </div>
     </div>
   );
@@ -96,14 +93,8 @@ export default function App() {
               </PublicOnly>
             }
           />
-          <Route
-            path="/reset-password/:token"
-            element={
-              <PublicOnly>
-                <ResetPassword />
-              </PublicOnly>
-            }
-          />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
+          <Route path="/auth/callback" element={<OAuthCallback />} />
           <Route path="/activate/:token" element={<Activate />} />
           <Route
             path="/"

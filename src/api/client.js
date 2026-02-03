@@ -22,8 +22,8 @@ export async function api(path, options = {}) {
   const url = path.startsWith("http")
     ? path
     : base
-    ? `${base}/api${path}`
-    : `/api${path}`;
+      ? `${base}/api${path}`
+      : `/api${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -33,7 +33,11 @@ export async function api(path, options = {}) {
     credentials: "include",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  if (!res.ok) {
+    const error = new Error(data.message || "Request failed");
+    error.status = res.status;
+    throw error;
+  }
   return data;
 }
 

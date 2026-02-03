@@ -106,6 +106,10 @@ describe("Dashboard Component", () => {
 
   it("filters files based on search query", async () => {
     mockUseOutletContext.mockReturnValue({ searchQuery: "Folder" });
+    api.mockResolvedValue({
+      items: [mockFiles[1]],
+      breadcrumbs: [],
+    });
 
     render(<Dashboard />);
 
