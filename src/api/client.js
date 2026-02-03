@@ -37,22 +37,59 @@ export async function api(path, options = {}) {
   return data;
 }
 
-export async function downloadFile(url, filename) {
+export async function uploadFile(path, formData, onProgress) {
   const token = getToken();
-  const res = await fetch(url, {
-    method: "GET",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    credentials: "include",
+  const base = getApiBase();
+  const url = base ? `${base}/api${path}` : `/api${path}`;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    // Note: Content-Type is set automatically with FormData
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch (e) {
+          resolve({});
+        }
+      } else {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          reject(new Error(data.message || "Upload failed"));
+        } catch (e) {
+          reject(new Error("Upload failed"));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.send(formData);
   });
-  if (!res.ok) throw new Error("Download failed.");
-  const blob = await res.blob();
-  const objectUrl = URL.createObjectURL(blob);
+}
+
+export async function downloadFile(url, filename) {
+  // For signed URLs (which contain auth params), we must NOT send the Authorization header
+  // as it will cause a signature mismatch or CORS error.
+  // We simply trigger a browser download.
   const a = document.createElement("a");
-  a.href = objectUrl;
+  a.href = url;
   a.download = filename || "download";
-  a.style.display = "none";
+  a.target = "_blank"; // Open in new tab if it's a viewable file, or trigger download
+  a.rel = "noopener noreferrer";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(objectUrl);
 }

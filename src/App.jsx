@@ -13,15 +13,14 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 function PageLoader() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-[#0a0a0c]"
-      style={{ background: "#0a0a0c" }}
+      className="min-h-screen flex items-center justify-center bg-drive-dark"
     >
       <div className="flex flex-col items-center gap-3">
         <div
-          className="h-10 w-10 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin"
+          className="h-10 w-10 border-2 border-drive-accent border-t-transparent rounded-full animate-spin"
           aria-hidden
         />
-        <span className="text-sm text-[#71717a]" style={{ color: "#71717a" }}>
+        <span className="text-sm text-drive-muted">
           Loading...
         </span>
       </div>
@@ -37,13 +36,13 @@ class RouteErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0a0a0c] p-4">
-          <div className="text-center text-white max-w-md">
+        <div className="min-h-screen flex items-center justify-center bg-drive-dark p-4">
+          <div className="text-center text-drive-text max-w-md">
             <p className="text-lg font-medium mb-2">Something went wrong</p>
-            <p className="text-[#71717a] text-sm mb-4">
+            <p className="text-drive-muted text-sm mb-4">
               Try refreshing the page or log in again.
             </p>
-            <a href="/" className="text-[#6366f1] hover:underline">
+            <a href="/" className="text-drive-accent hover:underline">
               Go to home
             </a>
           </div>
@@ -116,6 +115,8 @@ export default function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="folder/:folderId" element={<Dashboard />} />
+            <Route path="starred" element={<Dashboard />} />
+            <Route path="trash" element={<Dashboard />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

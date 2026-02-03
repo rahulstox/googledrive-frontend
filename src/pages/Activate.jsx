@@ -1,70 +1,109 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { HardDrive, CheckCircle, XCircle } from 'lucide-react';
-import { api } from '../api/client';
+import { useEffect, useState, useRef } from "react";
+import { Link, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
+import { api } from "../api/client";
 
 export default function Activate() {
   const { token } = useParams();
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState("loading");
+  const hasFetched = useRef(false);
 
   useEffect(() => {
     if (!token) {
-      setStatus('error');
+      setStatus("error");
       return;
     }
+
+    // Prevent double execution in StrictMode
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     api(`/auth/activate/${token}`)
       .then(() => {
-        setStatus('success');
-        toast.success('Account activated! You can now sign in.');
+        setStatus("success");
+        toast.success("Account activated! You can now sign in.");
       })
-      .catch(() => {
-        setStatus('error');
-        toast.error('Invalid or expired activation link.');
+      .catch((err) => {
+        setStatus("error");
+        toast.error(err.message || "Activation link is invalid or expired.");
       });
   }, [token]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 perspective-3d">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-drive-accent/12 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-float" style={{ animationDuration: '8s' }} />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-200 via-sky-50 to-white relative">
+      {/* Background Decorative Elements */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-white/30 rounded-full blur-3xl mix-blend-overlay" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-sky-200/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/40 rounded-full opacity-50 pointer-events-none" />
       </div>
-      <div className="card-3d glass w-full max-w-md border border-drive-border rounded-2xl shadow-3d p-8 text-center animate-slide-up relative z-10 pointer-events-auto">
+
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 relative z-10 animate-fade-in-up text-center">
+        {/* Status Icon */}
         <div className="flex justify-center mb-6">
-          <div className="p-3 rounded-xl bg-drive-accent/20 shadow-glow">
-            <HardDrive className="w-10 h-10 text-drive-accent" aria-hidden />
+          <div className="p-3 bg-white rounded-xl shadow-lg border border-gray-100">
+            {status === "loading" && (
+              <Loader2 className="w-8 h-8 text-gray-900 animate-spin" />
+            )}
+            {status === "success" && (
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            )}
+            {status === "error" && <XCircle className="w-8 h-8 text-red-500" />}
           </div>
         </div>
-        {status === 'loading' && (
+
+        {status === "loading" && (
           <>
-            <p className="text-drive-muted">Activating your account...</p>
-            <div className="mt-4 h-8 w-8 border-2 border-drive-accent border-t-transparent rounded-full animate-spin mx-auto" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Activating...
+            </h1>
+            <p className="text-gray-500 text-sm">
+              Please wait while we activate your account.
+            </p>
           </>
         )}
-        {status === 'success' && (
+
+        {status === "success" && (
           <>
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" aria-hidden />
-            <h1 className="text-xl font-bold text-white mb-2">Account activated</h1>
-            <p className="text-drive-muted mb-6">You can now sign in with your email and password.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Account activated
+            </h1>
+            <p className="text-gray-500 text-sm mb-8">
+              You can now sign in with your email and password.
+            </p>
             <Link
               to="/login"
-              className="inline-block px-6 py-3 rounded-xl bg-drive-accent hover:bg-drive-accentHover text-white font-medium shadow-glow hover:shadow-glow-lg transition-all duration-250"
+              className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
             >
               Sign in
             </Link>
           </>
         )}
-        {status === 'error' && (
+
+        {status === "error" && (
           <>
-            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" aria-hidden />
-            <h1 className="text-xl font-bold text-white mb-2">Activation failed</h1>
-            <p className="text-drive-muted mb-6">The link is invalid or has expired. You can request a new one by signing up again.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Activation failed
+            </h1>
+            <p className="text-gray-500 text-sm mb-8">
+              The link is invalid or has expired. You can request a new one by
+              signing up again.
+            </p>
             <Link
-              to="/login"
-              className="inline-block px-6 py-3 rounded-xl bg-drive-accent hover:bg-drive-accentHover text-white font-medium shadow-glow hover:shadow-glow-lg transition-all duration-250"
+              to="/register"
+              className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
             >
-              Go to sign in
+              Sign up again
             </Link>
+            <div className="mt-4">
+              <Link
+                to="/login"
+                className="text-sm font-semibold text-gray-900 hover:underline"
+              >
+                Back to sign in
+              </Link>
+            </div>
           </>
         )}
       </div>

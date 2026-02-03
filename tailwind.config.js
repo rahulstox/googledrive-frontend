@@ -1,5 +1,6 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -8,12 +9,13 @@ export default {
       },
       colors: {
         drive: {
-          dark: "#0a0a0c",
-          card: "#12121a",
-          border: "#27272e",
-          accent: "#6366f1",
-          accentHover: "#818cf8",
-          muted: "#71717a",
+          dark: "var(--bg-drive-dark)",
+          card: "var(--bg-drive-card)",
+          border: "var(--border-drive)",
+          text: "var(--text-main)",
+          accent: "var(--accent)",
+          accentHover: "var(--accent-hover)",
+          muted: "var(--text-muted)",
         },
       },
       perspective: {
