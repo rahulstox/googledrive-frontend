@@ -3,12 +3,12 @@ PROJECT URLS AND COMMIT CATALOG
 
 1. PROJECT: Krypton Drive Frontend
    -----------------------------------------------------------------------------
-   Application URL:       https://googledrive-frontend.domain.app
+   Application URL:       https://googledrive-frontend-seven.vercel.app/login
    GitHub Repository URL: https://github.com/rahulstox/googledrive-frontend
-   Last Commit Hash ID:   605bd4f8a0ec360cc2f344790513fd14c98d8add
+   Last Commit Hash ID:   81f69fa3236e89d3a87cc249862a9185eba8bba1
 
 2. PROJECT: Krypton Drive Backend
    -----------------------------------------------------------------------------
-   Application URL:       https://googledrive-backend.domain.app
+   Application URL:       https://googledrive-backend-msp6.onrender.com
    GitHub Repository URL: https://github.com/rahulstox/googledrive-backend
    Last Commit Hash ID:   b9dbc010a77e04e4604429363bb904a171e01d3a
