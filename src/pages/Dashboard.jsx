@@ -235,6 +235,8 @@ export default function Dashboard() {
 
       setUploadQueue((prev) => [...prev, ...newUploads]);
 
+      let successCount = 0;
+
       // Process uploads in parallel
       await Promise.all(
         newUploads.map(async (uploadItem) => {
@@ -265,6 +267,7 @@ export default function Dashboard() {
                   : item,
               ),
             );
+            successCount++;
           } catch (err) {
             setUploadQueue((prev) =>
               prev.map((item) =>
@@ -275,12 +278,18 @@ export default function Dashboard() {
           }
         }),
       );
+
+      if (successCount > 0) {
+        toast.success(
+          `Successfully uploaded ${successCount} file${successCount !== 1 ? "s" : ""}`,
+        );
+      }
       loadData();
     },
     [folderId, loadData, isTrashView, isStarredView],
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     noClick: true,
     noKeyboard: true,
@@ -1055,9 +1064,11 @@ export default function Dashboard() {
                       colSpan="6"
                       className="px-6 py-12 text-center text-drive-muted"
                     >
-                      <div className="flex flex-col items-center justify-center opacity-50">
-                        <FolderOpen className="w-16 h-16 mb-4 text-drive-muted" />
-                        <p className="text-lg">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="bg-drive-dark/30 p-6 rounded-full mb-4">
+                          <FolderOpen className="w-16 h-16 text-drive-muted opacity-50" />
+                        </div>
+                        <p className="text-lg font-medium text-drive-text mb-2">
                           {isTrashView
                             ? "Trash is empty"
                             : isStarredView
@@ -1066,6 +1077,23 @@ export default function Dashboard() {
                                 ? `No ${activeFilter} files found`
                                 : "No files found"}
                         </p>
+                        {!isTrashView && !isStarredView && !activeFilter && (
+                          <div className="flex flex-col items-center gap-3 mt-2">
+                            <p className="text-sm">
+                              Drag and drop files here to upload
+                            </p>
+                            <span className="text-xs text-drive-muted uppercase tracking-wider font-bold">
+                              OR
+                            </span>
+                            <button
+                              onClick={open}
+                              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-drive-accent text-white hover:bg-drive-accentHover transition-all shadow-lg shadow-drive-accent/25 hover:scale-105 active:scale-95"
+                            >
+                              <Upload className="w-5 h-5" />
+                              <span className="font-medium">Upload Files</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
