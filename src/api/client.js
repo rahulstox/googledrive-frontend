@@ -3,6 +3,10 @@ export const getToken = () => localStorage.getItem("drive_token");
 const getApiBase = () => {
   const env = typeof import.meta !== "undefined" && import.meta.env;
   const base = env?.VITE_API_URL ?? "";
+  // Warn in production if API URL is missing, helping diagnose connection issues
+  if (!base && env?.PROD) {
+    console.warn("VITE_API_URL is not set. API requests will target the current origin.");
+  }
   return base.replace(/\/$/, "");
 };
 
