@@ -1,0 +1,23 @@
+# Project Repository Documentation
+
+**Generated on:** 2026-02-04
+**Scope:** Krypton Drive Project
+
+## Frontend Repository
+
+- **Repository Name:** googledrive-frontend
+- **Repository URL:** https://github.com/rahulstox/googledrive-frontend
+- **Last Commit ID:** c9e5f356007e980577e37eaa3f22640fa7027b04
+- **Branch:** main
+
+## Backend Repository
+
+- **Repository Name:** googledrive-backend
+- **Repository URL:** https://github.com/rahulstox/googledrive-backend
+- **Last Commit ID:** 86b7e158bda2cd1d2b99a983361c440db9c5eca8
+- **Branch:** main
+
+## Associated Deployment / References
+
+- **Frontend Deployment:** https://googledrive-frontend-seven.vercel.app
+- **Backend Deployment:**  https://googledrive-backend-msp6.onrender.com
