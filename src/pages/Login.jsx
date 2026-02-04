@@ -165,21 +165,33 @@ export default function Login() {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() =>
-              (window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/google`)
-            }
-            className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
+            onClick={() => {
+              const baseUrl = import.meta.env.VITE_API_URL
+                ? `${import.meta.env.VITE_API_URL}/api`
+                : "/api";
+              window.location.href = `${baseUrl}/auth/google`;
+            }}
+            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Coming Soon
+            </div>
             <GoogleIcon className="w-5 h-5" />
             <span className="text-sm font-medium text-gray-700">Google</span>
           </button>
           <button
             type="button"
-            onClick={() =>
-              (window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/github`)
-            }
-            className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
+            onClick={() => {
+              const baseUrl = import.meta.env.VITE_API_URL
+                ? `${import.meta.env.VITE_API_URL}/api`
+                : "/api";
+              window.location.href = `${baseUrl}/auth/github`;
+            }}
+            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Coming Soon
+            </div>
             <Github className="w-5 h-5 text-gray-900" />
             <span className="text-sm font-medium text-gray-700">GitHub</span>
           </button>

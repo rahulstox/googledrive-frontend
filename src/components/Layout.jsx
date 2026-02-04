@@ -14,6 +14,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
 import DeleteAccountModal from "./DeleteAccountModal";
+import ProfileSetupModal from "./ProfileSetupModal";
 import { api } from "../api/client";
 import toast from "react-hot-toast";
 
@@ -235,7 +236,9 @@ export default function Layout() {
           onClose={() => setIsDeleteModalOpen(false)}
           onConfirm={confirmDeleteAccount}
           loading={isDeletingAccount}
+          isOAuth={user?.authProvider !== "email"}
         />
+        <ProfileSetupModal />
       </div>
     </div>
   );

@@ -35,11 +35,23 @@ export async function api(path, options = {}) {
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
     },
     credentials: "include",
+  }).catch((err) => {
+    // Handle network errors (e.g., DNS resolution, connection refused)
+    console.error("Network error:", err);
+    throw new Error(
+      "Unable to connect to the server. Please check your internet connection.",
+    );
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const error = new Error(data.message || "Request failed");
     error.status = res.status;
+    
+    // Customize messages for common status codes
+    if (res.status === 500) {
+      error.message = "Server error. Please try again later.";
+    }
+    
     throw error;
   }
   return data;

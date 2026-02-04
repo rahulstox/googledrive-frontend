@@ -1,13 +1,17 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { api } from "../api/client";
+import { useAuth } from "../context/useAuth";
 
 export default function Activate() {
-  const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
   const [status, setStatus] = useState("loading");
   const hasFetched = useRef(false);
+  const { refreshUser, user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!token) {
@@ -19,16 +23,30 @@ export default function Activate() {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
-    api(`/auth/activate/${token}`)
-      .then(() => {
+    // Use query param in API call as well
+    api(`/auth/activate?token=${token}`)
+      .then(async () => {
         setStatus("success");
         toast.success("Account activated! You can now sign in.");
+
+        // If user is already logged in, refresh their status and redirect
+        try {
+          if (localStorage.getItem("drive_token")) {
+            await refreshUser();
+            // Short delay to let user see success message, then redirect
+            setTimeout(() => {
+              navigate("/");
+            }, 2000);
+          }
+        } catch (e) {
+          console.error("Failed to refresh user:", e);
+        }
       })
       .catch((err) => {
         setStatus("error");
         toast.error(err.message || "Activation link is invalid or expired.");
       });
-  }, [token]);
+  }, [token, refreshUser, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-200 via-sky-50 to-white relative">
@@ -67,17 +85,29 @@ export default function Activate() {
         {status === "success" && (
           <>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Account activated
+              Your account is activated. Welcome!
             </h1>
             <p className="text-gray-500 text-sm mb-8">
-              You can now sign in with your email and password.
+              {localStorage.getItem("drive_token")
+                ? "Redirecting you to the dashboard..."
+                : "You can now sign in with your email and password."}
             </p>
-            <Link
-              to="/login"
-              className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Sign in
-            </Link>
+            {!localStorage.getItem("drive_token") && (
+              <Link
+                to="/login"
+                className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Sign in
+              </Link>
+            )}
+            {localStorage.getItem("drive_token") && (
+              <Link
+                to="/"
+                className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Go to Dashboard
+              </Link>
+            )}
           </>
         )}
 

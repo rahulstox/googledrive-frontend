@@ -39,16 +39,13 @@ export function AuthProvider({ children }) {
       })
       .catch((err) => {
         console.error("Auth check failed:", err);
-        // Only logout on auth errors (401)
-        if (err.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(USER_KEY);
-          setToken(null);
-          setUser(null);
+        // Logout on auth errors (401) or forbidden (403 - inactive)
+        if (err.status === 401 || err.status === 403) {
+          logout();
         }
       })
       .finally(() => setLoading(false));
-  }, [token, user]);
+  }, [token, user, logout]);
 
   const login = useCallback((newToken, newUser) => {
     localStorage.setItem(TOKEN_KEY, newToken);
@@ -58,8 +55,27 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  const refreshUser = useCallback(() => {
+    if (!token) return Promise.resolve();
+    return api("/auth/me")
+      .then((data) => {
+        setUser(data.user);
+        // Update local storage user just in case
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      })
+      .catch((err) => {
+        console.error("Auth refresh failed:", err);
+        // Don't logout on refresh error unless it's 401 or 403
+        if (err.status === 401 || err.status === 403) {
+          logout();
+        }
+      });
+  }, [token, logout]);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, login, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -8,6 +8,7 @@ const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Activate = lazy(() => import("./pages/Activate"));
+const CheckEmail = lazy(() => import("./pages/CheckEmail"));
 const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
@@ -95,7 +96,8 @@ export default function App() {
           />
           <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/auth/callback" element={<OAuthCallback />} />
-          <Route path="/activate/:token" element={<Activate />} />
+          <Route path="/activate" element={<Activate />} />
+          <Route path="/check-email" element={<CheckEmail />} />
           <Route
             path="/"
             element={

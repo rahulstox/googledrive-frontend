@@ -41,8 +41,6 @@ const GoogleIcon = ({ className }) => (
 
 export default function Register() {
   const [email, setEmail] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,7 +77,7 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !firstName || !lastName || !password) {
+    if (!email || !password) {
       toast.error("Please fill all fields.");
       return;
     }
@@ -90,15 +88,31 @@ export default function Register() {
     }
 
     setLoading(true);
+    const requestId = `req-${Date.now()}`;
+    console.log(
+      `[RegisterFrontend][${requestId}] Submitting registration form for: ${email}`,
+    );
+    console.time(`[RegisterFrontend][${requestId}] Registration API Call`);
+
     try {
       const data = await api("/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, firstName, lastName, password }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-id": requestId,
+        },
+        body: JSON.stringify({ email, password }),
       });
+
+      console.timeEnd(`[RegisterFrontend][${requestId}] Registration API Call`);
+      console.log(`[RegisterFrontend][${requestId}] Success response:`, data);
+
       toast.success("Account created! Check your email to activate.");
-      navigate("/login");
+      navigate("/check-email", { state: { email } });
     } catch (err) {
+      console.timeEnd(`[RegisterFrontend][${requestId}] Registration API Call`);
+      console.error(`[RegisterFrontend][${requestId}] Error:`, err);
+
       const msg = err.message || "Registration failed.";
       if (
         msg.includes("Failed to fetch") ||
@@ -141,33 +155,6 @@ export default function Register() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
-                <User className="w-5 h-5" />
-              </div>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First name"
-                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
-              />
-            </div>
-            <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
-                <User className="w-5 h-5" />
-              </div>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last name"
-                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
-              />
-            </div>
-          </div>
-
           <div className="relative group">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
               <Mail className="w-5 h-5" />
@@ -310,16 +297,22 @@ export default function Register() {
           <button
             type="button"
             onClick={() => toast("Google signup coming soon!", { icon: "🚧" })}
-            className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
+            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Coming Soon
+            </div>
             <GoogleIcon className="w-5 h-5" />
             <span className="text-sm font-medium text-gray-700">Google</span>
           </button>
           <button
             type="button"
             onClick={() => toast("GitHub signup coming soon!", { icon: "🚧" })}
-            className="flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
+            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
           >
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Coming Soon
+            </div>
             <Github className="w-5 h-5 text-gray-900" />
             <span className="text-sm font-medium text-gray-700">GitHub</span>
           </button>
