@@ -37,7 +37,7 @@ export default function ResetPassword() {
     upper: /[A-Z]/.test(password),
     lower: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
-    special: /[@$!%*?&]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
   };
   const isStrong = Object.values(validations).every(Boolean);
   const match = password === confirm;
@@ -179,7 +179,7 @@ export default function ResetPassword() {
                   <Requirement label="Lowercase" met={validations.lower} />
                   <Requirement label="Number" met={validations.number} />
                   <Requirement
-                    label="Special (@$!%*?&)"
+                    label="Special Character"
                     met={validations.special}
                   />
                 </div>
