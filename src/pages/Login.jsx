@@ -1,9 +1,18 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mail, Lock, ArrowRight, Github, Eye, EyeOff } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  ArrowRight,
+  Github,
+  Eye,
+  EyeOff,
+  Shield,
+} from "lucide-react";
 import { useAuth } from "../context/useAuth";
 import { api } from "../api/client";
+import { useConfig } from "../context/ConfigContext";
 
 const GoogleIcon = ({ className }) => (
   <svg
@@ -31,8 +40,11 @@ const GoogleIcon = ({ className }) => (
 );
 
 export default function Login() {
+  const { config } = useConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [require2fa, setRequire2fa] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -42,6 +54,10 @@ export default function Login() {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please enter email and password.");
+      return;
+    }
+    if (require2fa && otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit 2FA code.");
       return;
     }
 
@@ -54,16 +70,26 @@ export default function Login() {
 
     setLoading(true);
     try {
+      const body = { email, password };
+      if (require2fa) body.otp = otp;
+
       const data = await api("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
       login(data.token, data.user);
       toast.success("Welcome back!");
       navigate("/");
     } catch (err) {
-      toast.error(err.message || "Login failed.");
+      if (err.status === 403 && err.data?.require2fa) {
+        setRequire2fa(true);
+        toast.error("2FA Required");
+      } else if (err.status === 401 && require2fa) {
+        toast.error("Invalid 2FA Code");
+      } else {
+        toast.error(err.message || "Login failed.");
+      }
     } finally {
       setLoading(false);
     }
@@ -89,131 +115,145 @@ export default function Login() {
         </div>
 
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-          Sign in with email
+          {require2fa ? "Two-Factor Authentication" : "Sign in with email"}
         </h1>
         <p className="text-center text-gray-500 text-sm mb-8 px-4">
-          Secure cloud storage for all your files. Access them from anywhere, on
-          any device.
+          {require2fa
+            ? "Enter the 6-digit code from your authenticator app."
+            : "Secure cloud storage for all your files. Access them from anywhere, on any device."}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
-                <Mail className="w-5 h-5" />
+          {!require2fa ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all text-gray-900"
+                    placeholder="name@example.com"
+                    required
+                  />
+                </div>
               </div>
-              <input
-                type="email"
-                name="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
-              />
-            </div>
-          </div>
 
-          <div>
-            <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-gray-900 text-gray-400">
-                <Lock className="w-5 h-5" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all text-gray-900"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="w-full pl-12 pr-12 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 transition-all duration-200"
-              />
+            </>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Authentication Code
+              </label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all text-gray-900 tracking-widest text-lg font-mono"
+                  placeholder="000000"
+                  autoFocus
+                  required
+                />
+              </div>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => setRequire2fa(false)}
+                className="mt-2 text-sm text-gray-500 hover:text-gray-900 underline"
               >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
+                Back to login
               </button>
             </div>
-            <div className="flex justify-end mt-2">
-              <Link
-                to="/forgot-password"
-                className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
-          </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full bg-gray-900 text-white py-3 rounded-xl font-medium hover:bg-gray-800 focus:ring-4 focus:ring-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
           >
-            {loading ? "Signing in..." : "Get Started"}
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                {require2fa ? "Verify" : "Sign In"}
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 
-        <div className="mt-8 mb-6 relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-100"></div>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-4 text-gray-400 tracking-wider">
-              Or sign in with
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              const baseUrl = import.meta.env.VITE_API_URL
-                ? `${import.meta.env.VITE_API_URL}/api`
-                : "/api";
-              window.location.href = `${baseUrl}/auth/google`;
-            }}
-            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
-          >
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-              Coming Soon
+        {!require2fa && (
+          <>
+            <div className="my-8 flex items-center gap-4">
+              <div className="h-px bg-gray-100 flex-1" />
+              <span className="text-sm text-gray-400 font-medium">OR</span>
+              <div className="h-px bg-gray-100 flex-1" />
             </div>
-            <GoogleIcon className="w-5 h-5" />
-            <span className="text-sm font-medium text-gray-700">Google</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const baseUrl = import.meta.env.VITE_API_URL
-                ? `${import.meta.env.VITE_API_URL}/api`
-                : "/api";
-              window.location.href = `${baseUrl}/auth/github`;
-            }}
-            className="relative flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 group"
-          >
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-              Coming Soon
-            </div>
-            <Github className="w-5 h-5 text-gray-900" />
-            <span className="text-sm font-medium text-gray-700">GitHub</span>
-          </button>
-        </div>
 
-        <p className="mt-8 text-center text-sm text-gray-500">
-          Don't have an account?{" "}
-          <Link
-            to="/register"
-            className="font-semibold text-gray-900 hover:underline decoration-2 underline-offset-2"
-          >
-            Sign up
-          </Link>
-        </p>
+            <div className="grid grid-cols-2 gap-4">
+              <a
+                href={`${import.meta.env.VITE_API_URL}/api/auth/google`}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
+              >
+                <GoogleIcon className="w-5 h-5" />
+                Google
+              </a>
+              <button
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
+                onClick={() => toast.error("Github login coming soon!")}
+              >
+                <Github className="w-5 h-5" />
+                Github
+              </button>
+            </div>
+          </>
+        )}
+
+        {config?.allowRegistration && (
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="font-semibold text-gray-900 hover:underline"
+            >
+              Sign up
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

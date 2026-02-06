@@ -3,27 +3,22 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Mail, Loader2 } from "lucide-react";
 import { api } from "../api/client";
+import { useAuth } from "../context/useAuth";
 
 export default function CheckEmail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [timeLeft, setTimeLeft] = useState(5);
+  const { user } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const email = location.state?.email;
 
+  // Auto-redirect if user becomes active (e.g. from another tab)
   useEffect(() => {
-    if (timeLeft <= 0) {
-      navigate("/login");
+    if (user) {
+      toast.success("Account activated! Redirecting...");
+      navigate("/");
     }
-  }, [timeLeft, navigate]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
+  }, [user, navigate]);
 
   const handleResend = async () => {
     if (!email) {
@@ -68,8 +63,9 @@ export default function CheckEmail() {
           Please go activate your account
         </h1>
         <p className="text-gray-500 text-sm mb-8">
-          We've sent an activation link to your email. Please check your inbox
-          and click the link to activate your account.
+          We’ve sent an activation link to your email. Please check your{" "}
+          <span className="text-green-600 font-medium">inbox</span> or{" "}
+          <span className="text-red-600 font-medium">spam folder</span>.
         </p>
 
         <div className="space-y-4">
@@ -81,10 +77,6 @@ export default function CheckEmail() {
             {isResending && <Loader2 className="w-4 h-4 animate-spin" />}
             {isResending ? "Resending..." : "Resend e-mail"}
           </button>
-
-          <p className="text-xs text-gray-400">
-            Redirecting to login in {timeLeft} seconds...
-          </p>
 
           <Link
             to="/login"

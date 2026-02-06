@@ -10,6 +10,7 @@ import {
   User,
   ChevronDown,
   Settings,
+  Shield,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
@@ -163,11 +164,11 @@ export default function Layout() {
                 className="flex items-center gap-3 pl-2 hover:bg-drive-border/10 rounded-xl p-1 transition-colors outline-none"
               >
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-drive-accent to-purple-500 flex items-center justify-center text-white font-bold shadow-lg shadow-drive-accent/20">
-                  {user?.firstName?.[0]}
+                  {user?.username?.[0]?.toUpperCase()}
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-bold text-drive-text leading-tight">
-                    {user?.firstName} {user?.lastName}
+                    {user?.username}
                   </p>
                   <p className="text-xs text-drive-muted">Free Plan</p>
                 </div>
@@ -180,7 +181,7 @@ export default function Layout() {
                 <div className="absolute right-0 mt-2 w-64 bg-drive-card rounded-2xl shadow-xl border border-drive-border py-2 z-50 animate-fade-in-up">
                   <div className="px-4 py-3 border-b border-drive-border/50">
                     <p className="text-sm font-bold text-drive-text">
-                      {user?.firstName} {user?.lastName}
+                      {user?.username}
                     </p>
                     <p className="text-xs text-drive-muted truncate">
                       {user?.email}
@@ -188,16 +189,24 @@ export default function Layout() {
                   </div>
 
                   <div className="py-2">
-                    <button
+                    <Link
+                      to="/settings"
                       className="w-full px-4 py-2.5 text-sm text-drive-text hover:bg-drive-dark flex items-center gap-3 transition-colors"
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        toast("Profile settings coming soon!", { icon: "⚙️" });
-                      }}
+                      onClick={() => setIsProfileOpen(false)}
                     >
                       <User className="w-4 h-4" />
                       Profile Settings
-                    </button>
+                    </Link>
+                    {user?.role === "admin" && (
+                      <Link
+                        to="/admin/settings"
+                        className="w-full px-4 py-2.5 text-sm text-drive-text hover:bg-drive-dark flex items-center gap-3 transition-colors"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <Shield className="w-4 h-4" />
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <button
                       className="w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
                       onClick={() => {

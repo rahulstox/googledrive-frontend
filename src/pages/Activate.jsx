@@ -10,7 +10,7 @@ export default function Activate() {
   const token = searchParams.get("token");
   const [status, setStatus] = useState("loading");
   const hasFetched = useRef(false);
-  const { refreshUser, user } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,28 +25,33 @@ export default function Activate() {
 
     // Use query param in API call as well
     api(`/auth/activate?token=${token}`)
-      .then(async () => {
+      .then(async (data) => {
         setStatus("success");
-        toast.success("Account activated! You can now sign in.");
+        toast.success("Account activated! Redirecting to dashboard...");
 
-        // If user is already logged in, refresh their status and redirect
-        try {
-          if (localStorage.getItem("drive_token")) {
-            await refreshUser();
-            // Short delay to let user see success message, then redirect
-            setTimeout(() => {
-              navigate("/");
-            }, 2000);
-          }
-        } catch (e) {
-          console.error("Failed to refresh user:", e);
+        // Auto-login with the returned token and user data
+        if (data.token && data.user) {
+          login(data.token, data.user);
+          // Short delay to let user see success message, then redirect
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+        } else {
+          // Fallback if no token returned (shouldn't happen with new backend)
+          setTimeout(() => {
+            navigate("/login");
+          }, 2000);
         }
       })
       .catch((err) => {
         setStatus("error");
         toast.error(err.message || "Activation link is invalid or expired.");
       });
-  }, [token, refreshUser, navigate]);
+  }, [token, login, navigate]);
+
+  const handleManualRedirect = () => {
+    navigate("/");
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-200 via-sky-50 to-white relative">
@@ -85,27 +90,27 @@ export default function Activate() {
         {status === "success" && (
           <>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Your account is activated. Welcome!
+              Your account is activated.
             </h1>
             <p className="text-gray-500 text-sm mb-8">
               {localStorage.getItem("drive_token")
-                ? "Redirecting you to the dashboard..."
+                ? "Redirecting to your dashboard..."
                 : "You can now sign in with your email and password."}
             </p>
-            {!localStorage.getItem("drive_token") && (
+
+            {localStorage.getItem("drive_token") ? (
+              <button
+                onClick={handleManualRedirect}
+                className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Go to Dashboard
+              </button>
+            ) : (
               <Link
                 to="/login"
                 className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
                 Sign in
-              </Link>
-            )}
-            {localStorage.getItem("drive_token") && (
-              <Link
-                to="/"
-                className="inline-block w-full py-3.5 rounded-xl bg-[#18181b] hover:bg-black text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-              >
-                Go to Dashboard
               </Link>
             )}
           </>

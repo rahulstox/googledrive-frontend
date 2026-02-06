@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "../api/client";
+import { useConfig } from "../context/ConfigContext";
 
 const GoogleIcon = ({ className }) => (
   <svg
@@ -40,6 +41,7 @@ const GoogleIcon = ({ className }) => (
 );
 
 export default function Register() {
+  const { config, loading: configLoading } = useConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +65,31 @@ export default function Register() {
       special: /[@$!%*?&]/.test(password),
     });
   }, [password]);
+
+  if (configLoading) {
+    return <div className="min-h-screen bg-drive-dark" />;
+  }
+
+  if (config && !config.allowRegistration) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-drive-dark px-4">
+        <div className="bg-drive-surface p-8 rounded-xl shadow-lg border border-drive-border w-full max-w-md text-center">
+          <h2 className="text-2xl font-bold text-drive-text mb-4">
+            Registration Closed
+          </h2>
+          <p className="text-drive-muted mb-6">
+            New user registration is currently disabled by the administrator.
+          </p>
+          <Link
+            to="/login"
+            className="px-4 py-2 bg-drive-accent hover:bg-drive-accent-hover text-white rounded-lg transition-colors inline-block"
+          >
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const getStrength = () => {
     const metCriteria = Object.values(passwordCriteria).filter(Boolean).length;
@@ -89,8 +116,8 @@ export default function Register() {
       return;
     }
 
-    if (!Object.values(passwordCriteria).every(Boolean)) {
-      toast.error("Please meet all password requirements.");
+    if (strength.label === "Weak" || strength.label === "Enter Password") {
+      toast.error("Password must be at least Medium strength.");
       return;
     }
 

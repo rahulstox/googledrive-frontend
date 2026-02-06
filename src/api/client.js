@@ -46,6 +46,7 @@ export async function api(path, options = {}) {
   if (!res.ok) {
     const error = new Error(data.message || "Request failed");
     error.status = res.status;
+    error.data = data; // Attach full response data
     
     // Customize messages for common status codes
     if (res.status === 500) {

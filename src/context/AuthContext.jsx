@@ -47,6 +47,28 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, [token, user, logout]);
 
+  // Sync auth state across tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === TOKEN_KEY) {
+        const newToken = e.newValue;
+        if (newToken) {
+          setToken(newToken);
+          const storedUser = localStorage.getItem(USER_KEY);
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
+          }
+        } else {
+          setToken(null);
+          setUser(null);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   const login = useCallback((newToken, newUser) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));

@@ -11,6 +11,8 @@ const Activate = lazy(() => import("./pages/Activate"));
 const CheckEmail = lazy(() => import("./pages/CheckEmail"));
 const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 
 function PageLoader() {
   return (
@@ -110,6 +112,8 @@ export default function App() {
             <Route path="folder/:folderId" element={<Dashboard />} />
             <Route path="starred" element={<Dashboard />} />
             <Route path="trash" element={<Dashboard />} />
+            <Route path="settings" element={<ProfileSettings />} />
+            <Route path="admin/settings" element={<AdminSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

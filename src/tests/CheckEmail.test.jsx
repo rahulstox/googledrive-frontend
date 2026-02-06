@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { axe, toHaveNoViolations } from "jest-axe";
@@ -20,6 +20,22 @@ vi.mock("react-hot-toast", () => ({
     success: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+// Mock ConfigContext
+vi.mock("../context/ConfigContext", () => ({
+  useConfig: () => ({
+    config: { appName: "Krypton Drive" },
+    loading: false,
+  }),
+}));
+
+// Mock AuthContext
+vi.mock("../context/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+  }),
 }));
 
 // Mock Router Hooks
@@ -45,10 +61,14 @@ describe("CheckEmail Component", () => {
     render(
       <BrowserRouter>
         <CheckEmail />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
-    expect(screen.getByText(/Please go activate your account/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please go activate your account/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/inbox/i)).toHaveClass("text-green-600");
+    expect(screen.getByText(/spam folder/i)).toHaveClass("text-red-600");
     expect(screen.getByText(/Resend e-mail/i)).toBeInTheDocument();
   });
 
@@ -56,7 +76,7 @@ describe("CheckEmail Component", () => {
     const { container } = render(
       <BrowserRouter>
         <CheckEmail />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
     const results = await axe(container);
     expect(results).toHaveNoViolations();
@@ -68,16 +88,19 @@ describe("CheckEmail Component", () => {
     render(
       <BrowserRouter>
         <CheckEmail />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const resendBtn = screen.getByText(/Resend e-mail/i);
     fireEvent.click(resendBtn);
 
-    expect(api).toHaveBeenCalledWith("/auth/resend-activation", expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({ email: "test@example.com" }),
-    }));
+    expect(api).toHaveBeenCalledWith(
+      "/auth/resend-activation",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ email: "test@example.com" }),
+      }),
+    );
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Activation email resent!");
@@ -90,30 +113,15 @@ describe("CheckEmail Component", () => {
     render(
       <BrowserRouter>
         <CheckEmail />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const resendBtn = screen.getByText(/Resend e-mail/i);
     fireEvent.click(resendBtn);
 
     expect(api).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Email address missing"));
-  });
-
-  it("redirects to login after timeout", async () => {
-    vi.useFakeTimers();
-    render(
-      <BrowserRouter>
-        <CheckEmail />
-      </BrowserRouter>
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("Email address missing"),
     );
-
-    // Fast-forward time (5 seconds)
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/login");
-    vi.useRealTimers();
   });
 });
